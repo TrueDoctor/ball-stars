@@ -10,9 +10,13 @@ fn main() -> Result<(), std::io::Error> {
         if connection.peers().len() > 1 {
             break connection.peers()[1];
         }
+        println!("searching…");
     };
 
+    println!("connecting to {peer:?}");
     let connection = connection.connect(peer)?;
+
+    println!("sending data…");
 
     loop {
         connection.send(b"hello")?;

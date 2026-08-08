@@ -53,7 +53,7 @@ impl Connection<Pairing> {
 
         socket.leave_multicast_v4(&MADDR, &Ipv4Addr::UNSPECIFIED)?;
         socket.connect(addr)?;
-        socket.set_nonblocking(false)?;
+        socket.set_nonblocking(true)?;
 
         Ok(Connection {
             peers,
