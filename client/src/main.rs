@@ -23,6 +23,69 @@ pub struct State {
     colour: wgpu::Color,
     // NEW!
     render_pipeline: wgpu::RenderPipeline,
+    game: Game,
+}
+
+enum Connection {
+    Pairing(Option<fetch::Connection<fetch::Pairing>>),
+    Connected(fetch::Connection<fetch::Connected>),
+}
+type Pos = (f64, f64);
+
+impl Connection {
+    fn update(&mut self, pos: Pos) -> Option<Pos> {
+        match self {
+            Connection::Pairing(maybe_connection) => {
+                let connection = maybe_connection.as_mut()?;
+                connection.send_multicast_hello().ok()?;
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                connection.collect_responses().ok()?;
+                connection.send_multicast_hello().ok()?;
+                let peer = *connection.peers().first()?;
+
+                println!("\nconnecting to {peer:?}");
+                let connection = maybe_connection.take().unwrap().connect(peer).ok()?;
+                *self = Connection::Connected(connection);
+                None
+            }
+            Connection::Connected(connection) => {
+                let mut message = [0; 16];
+                message[0..8].copy_from_slice(&pos.0.to_ne_bytes());
+                message[8..].copy_from_slice(&pos.1.to_ne_bytes());
+                let _ = connection.send(&message);
+                let mut other_pos = None;
+                while let Ok(Some(res)) = connection.recv() {
+                    let x = f64::from_le_bytes(res[0..4].try_into().unwrap());
+                    let y = f64::from_le_bytes(res[4..].try_into().unwrap());
+                    other_pos = Some((x, y));
+                }
+                other_pos
+            }
+        }
+    }
+}
+
+struct Game {
+    background_colour: wgpu::Color,
+    own_pointer_pos: Pos,
+    remote_pointer_pos: Pos,
+    connection: Connection,
+}
+
+impl Default for Game {
+    fn default() -> Self {
+        Self {
+            background_colour: wgpu::Color {
+                r: 0.1,
+                g: 0.2,
+                b: 0.3,
+                a: 1.0,
+            },
+            own_pointer_pos: Default::default(),
+            remote_pointer_pos: Default::default(),
+            connection: Connection::Pairing(fetch::Connection::new().ok()),
+        }
+    }
 }
 
 impl State {
@@ -150,6 +213,7 @@ impl State {
                 a: 1.0,
             },
             render_pipeline,
+            game: Game::default(),
         })
     }
 
@@ -171,7 +235,19 @@ impl State {
         }
     }
     fn update(&mut self) {
-        // remove `todo!()`
+        let (x_scale, y_scale) = match self.game.connection.update(self.game.own_pointer_pos) {
+            None => self.game.own_pointer_pos,
+            Some(new) => {
+                self.game.remote_pointer_pos = new;
+                new
+            }
+        };
+        self.game.background_colour = wgpu::Color {
+            r: x_scale,
+            g: (1.0 - x_scale),
+            b: y_scale,
+            a: (1.0 - y_scale),
+        };
     }
 
     fn render(&mut self) -> anyhow::Result<()> {
@@ -218,7 +294,7 @@ impl State {
                     resolve_target: None,
                     depth_slice: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(self.colour),
+                        load: wgpu::LoadOp::Clear(self.game.background_colour),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -242,12 +318,7 @@ impl State {
         let height = self.config.height;
         let x_scale = pos.x / (width as f64);
         let y_scale = pos.y / (height as f64);
-        self.colour = wgpu::Color {
-            r: x_scale,
-            g: (1.0 - x_scale),
-            b: y_scale,
-            a: (1.0 - y_scale),
-        };
+        self.game.own_pointer_pos = (x_scale, y_scale);
     }
 }
 
@@ -287,7 +358,6 @@ impl ApplicationHandler<State> for App {
         };
 
         match event {
-            // ...
             WindowEvent::RedrawRequested => {
                 state.update();
                 match state.render() {
