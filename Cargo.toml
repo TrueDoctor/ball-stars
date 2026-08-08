@@ -1,0 +1,4 @@
+[workspace]
+members = ["client"]
+resolver = "3"
+default_members = ["client"]
