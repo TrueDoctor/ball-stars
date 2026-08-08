@@ -3,12 +3,15 @@ use fetch::Connection;
 fn main() -> Result<(), std::io::Error> {
     let mut connection = Connection::new()?;
 
+    println!("peer id {:x}", connection.peer_id());
+
     let peer = loop {
         connection.send_multicast_hello()?;
         std::thread::sleep(std::time::Duration::from_secs(1));
         connection.collect_responses()?;
-        if connection.peers().len() > 1 {
-            break connection.peers()[1];
+        if let Some(peer) = connection.peers().first() {
+            connection.send_multicast_hello()?;
+            break *peer;
         }
         println!("searching…");
     };
@@ -20,7 +23,9 @@ fn main() -> Result<(), std::io::Error> {
 
     loop {
         connection.send(b"hello")?;
-        let msg = connection.recv()?;
-        print!("{}", std::str::from_utf8(&msg).unwrap());
+        if let Some(msg) = connection.recv()? {
+            print!("{}", String::from_utf8_lossy(&msg));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
 }
