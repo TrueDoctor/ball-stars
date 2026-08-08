@@ -4,8 +4,8 @@ use std::{
     net::{Ipv4Addr, SocketAddr, UdpSocket},
 };
 
-const PORT: u16 = 9999;
-const MADDR: Ipv4Addr = Ipv4Addr::new(239, 0, 0, 0);
+const PORT: u16 = 9876;
+const MADDR: Ipv4Addr = Ipv4Addr::new(239, 0, 0, 123);
 
 pub struct Pairing;
 pub struct Connected;
