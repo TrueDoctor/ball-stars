@@ -18,7 +18,7 @@ pub struct Connection<T> {
 
 impl Connection<Pairing> {
     pub fn new() -> Result<Connection<Pairing>, Error> {
-        let socket = UdpSocket::bind((MADDR, PORT))?;
+        let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, PORT))?;
         socket.set_nonblocking(true)?;
         socket.join_multicast_v4(&MADDR, &Ipv4Addr::UNSPECIFIED)?;
         Ok(Self {
@@ -49,11 +49,12 @@ impl Connection<Pairing> {
     }
 
     pub fn connect(self, addr: SocketAddr) -> Result<Connection<Connected>, Error> {
-        let Self { peers, .. } = self;
+        let Self { peers, socket, .. } = self;
 
-        let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, PORT))?;
-        // socket.set_nonblocking(true)?;
+        socket.leave_multicast_v4(&MADDR, &Ipv4Addr::UNSPECIFIED)?;
         socket.connect(addr)?;
+        socket.set_nonblocking(false)?;
+
         Ok(Connection {
             peers,
             socket,
