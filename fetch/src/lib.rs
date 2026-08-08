@@ -7,17 +7,17 @@ use std::{
 const PORT: u16 = 9999;
 const MADDR: Ipv4Addr = Ipv4Addr::new(239, 0, 0, 0);
 
-struct Pairing;
-struct Connected;
+pub struct Pairing;
+pub struct Connected;
 
-struct Connection<T> {
+pub struct Connection<T> {
     peers: Vec<SocketAddr>,
     socket: UdpSocket,
     _state: PhantomData<T>,
 }
 
 impl Connection<Pairing> {
-    fn new() -> Result<Connection<Pairing>, Error> {
+    pub fn new() -> Result<Connection<Pairing>, Error> {
         let socket = UdpSocket::bind((MADDR, PORT))?;
         socket.set_nonblocking(true)?;
         socket.join_multicast_v4(&MADDR, &Ipv4Addr::UNSPECIFIED)?;
@@ -28,12 +28,12 @@ impl Connection<Pairing> {
         })
     }
 
-    fn send_multicast_hello(&self) -> Result<(), Error> {
+    pub fn send_multicast_hello(&self) -> Result<(), Error> {
         self.socket.send_to(&42u32.to_le_bytes(), (MADDR, PORT))?;
 
         Ok(())
     }
-    fn collect_responses(&mut self) -> Result<(), Error> {
+    pub fn collect_responses(&mut self) -> Result<(), Error> {
         let mut buf = [0; 4];
         // todo deal with partial messages
         while let Ok((read_len, addr)) = self.socket.recv_from(&mut buf) {
@@ -44,12 +44,16 @@ impl Connection<Pairing> {
         Ok(())
     }
 
-    fn connect(self, addr: Ipv4Addr) -> Result<Connection<Connected>, Error> {
+    pub fn peers(&self) -> &[SocketAddr] {
+        &self.peers
+    }
+
+    pub fn connect(self, addr: SocketAddr) -> Result<Connection<Connected>, Error> {
         let Self { peers, .. } = self;
 
         let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, PORT))?;
         // socket.set_nonblocking(true)?;
-        socket.connect((addr, PORT))?;
+        socket.connect(addr)?;
         Ok(Connection {
             peers,
             socket,
@@ -59,12 +63,13 @@ impl Connection<Pairing> {
 }
 
 impl Connection<Connected> {
-    fn send(&self, message: &[u8]) -> Result<(), Error> {
+    pub fn send(&self, message: &[u8]) -> Result<(), Error> {
         self.socket
             .send(message)
             .map(|len| assert_eq!(len, message.len(), "failed to send full message"))
     }
-    fn recv(&self) -> Result<Vec<u8>, Error> {
+
+    pub fn recv(&self) -> Result<Vec<u8>, Error> {
         let mut len = 100;
         let mut output = Vec::new();
         let mut buf = vec![0; 100];
