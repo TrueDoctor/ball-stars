@@ -13,9 +13,6 @@ fn main() {
     run().unwrap();
 }
 
-// This will store the state of our game
-// lib.rs
-
 pub struct State {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
@@ -33,10 +30,7 @@ impl State {
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            #[cfg(not(target_arch = "wasm32"))]
             backends: wgpu::Backends::PRIMARY,
-            #[cfg(target_arch = "wasm32")]
-            backends: wgpu::Backends::GL,
             flags: Default::default(),
             memory_budget_thresholds: Default::default(),
             backend_options: Default::default(),
@@ -61,11 +55,7 @@ impl State {
                 experimental_features: wgpu::ExperimentalFeatures::disabled(),
                 // WebGL doesn't support all of wgpu's features, so if
                 // we're building for the web we'll have to disable some.
-                required_limits: if cfg!(target_arch = "wasm32") {
-                    wgpu::Limits::downlevel_webgl2_defaults()
-                } else {
-                    wgpu::Limits::default()
-                },
+                required_limits: wgpu::Limits::default(),
                 memory_hints: Default::default(),
                 trace: wgpu::Trace::Off,
             })
@@ -106,10 +96,8 @@ impl State {
                 a: 1.0,
             },
         })
-
-        // ...
     }
-    // impl State
+
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             let max = 2048;
@@ -119,17 +107,17 @@ impl State {
             self.is_surface_configured = true;
         }
     }
-    // impl State
+
     fn handle_key(&self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
         match (code, is_pressed) {
             (KeyCode::Escape, true) => event_loop.exit(),
+            (KeyCode::KeyQ, true) => event_loop.exit(),
             _ => {}
         }
     }
     fn update(&mut self) {
         // remove `todo!()`
     }
-    // impl State
 
     fn render(&mut self) -> anyhow::Result<()> {
         self.window.request_redraw();
