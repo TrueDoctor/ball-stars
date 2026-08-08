@@ -58,8 +58,8 @@ impl Connection {
                     if res.len() != message.len() {
                         continue;
                     }
-                    let x = f64::from_le_bytes(res[0..4].try_into().unwrap());
-                    let y = f64::from_le_bytes(res[4..].try_into().unwrap());
+                    let x = f64::from_le_bytes(res[0..8].try_into().unwrap());
+                    let y = f64::from_le_bytes(res[8..].try_into().unwrap());
                     other_pos = Some((x, y));
                 }
                 other_pos
