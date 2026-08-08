@@ -55,6 +55,9 @@ impl Connection {
                 let _ = connection.send(&message);
                 let mut other_pos = None;
                 while let Ok(Some(res)) = connection.recv() {
+                    if res.len() != message.len() {
+                        continue;
+                    }
                     let x = f64::from_le_bytes(res[0..4].try_into().unwrap());
                     let y = f64::from_le_bytes(res[4..].try_into().unwrap());
                     other_pos = Some((x, y));
