@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use fetch::Connection;
 
 fn main() -> Result<(), std::io::Error> {
@@ -5,18 +7,20 @@ fn main() -> Result<(), std::io::Error> {
 
     println!("peer id {:x}", connection.peer_id());
 
+    print!("searching…");
     let peer = loop {
         connection.send_multicast_hello()?;
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_millis(100));
         connection.collect_responses()?;
         if let Some(peer) = connection.peers().first() {
             connection.send_multicast_hello()?;
             break *peer;
         }
-        println!("searching…");
+        print!("…");
+        std::io::stdout().flush()?;
     };
 
-    println!("connecting to {peer:?}");
+    println!("\nconnecting to {peer:?}");
     let connection = connection.connect(peer)?;
 
     println!("sending data…");
@@ -24,7 +28,7 @@ fn main() -> Result<(), std::io::Error> {
     loop {
         connection.send(b"hello")?;
         if let Some(msg) = connection.recv()? {
-            print!("{}", String::from_utf8_lossy(&msg));
+            println!("{}", String::from_utf8_lossy(&msg));
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
