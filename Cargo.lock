@@ -271,6 +271,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
+ "fetch",
  "log",
  "pollster",
  "wgpu",
@@ -484,6 +485,10 @@ dependencies = [
  "libc",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "fetch"
+version = "0.1.0"
 
 [[package]]
 name = "find-msvc-tools"

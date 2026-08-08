@@ -1,4 +1,7 @@
 [workspace]
-members = ["client"]
+members = ["client", "fetch"]
 resolver = "3"
-default_members = ["client"]
+default-members = ["client"]
+
+[workspace.dependencies]
+fetch = { path = "fetch" }

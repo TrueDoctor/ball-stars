@@ -12,11 +12,6 @@ fn main() {
     run().unwrap();
 }
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-#[cfg(target_arch = "wasm32")]
-use winit::platform::web::EventLoopExtWebSys;
-
 // This will store the state of our game
 pub struct State {
     window: Arc<Window>,
@@ -39,6 +34,8 @@ impl State {
         // We'll do more stuff here in the next tutorial
     }
 }
+
+#[derive(Default)]
 pub struct App {
     state: Option<State>,
 }
@@ -89,6 +86,7 @@ impl ApplicationHandler<State> for App {
                 ..
             } => match (code, key_state.is_pressed()) {
                 (KeyCode::Escape, true) => event_loop.exit(),
+                (KeyCode::KeyQ, true) => event_loop.exit(),
                 _ => {}
             },
             _ => {}
