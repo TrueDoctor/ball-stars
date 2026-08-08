@@ -8,8 +8,7 @@ fn main() -> Result<(), std::io::Error> {
         std::thread::sleep(std::time::Duration::from_secs(1));
         connection.collect_responses()?;
         if !connection.peers().len() > 1 {
-            // break connection.peers()[0];
-            dbg!(connection.peers());
+            break connection.peers()[1];
         }
     };
 
