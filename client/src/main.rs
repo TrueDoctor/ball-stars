@@ -72,6 +72,7 @@ struct Game {
     background_colour: wgpu::Color,
     own_pointer_pos: Pos,
     remote_pointer_pos: Pos,
+    has_remote: bool,
     connection: Connection,
 }
 
@@ -84,6 +85,7 @@ impl Default for Game {
                 b: 0.3,
                 a: 1.0,
             },
+            has_remote: false,
             own_pointer_pos: Default::default(),
             remote_pointer_pos: Default::default(),
             connection: Connection::Pairing(fetch::Connection::new().ok()),
@@ -239,9 +241,11 @@ impl State {
     }
     fn update(&mut self) {
         let (x_scale, y_scale) = match self.game.connection.update(self.game.own_pointer_pos) {
-            None => self.game.own_pointer_pos,
+            None if !self.game.has_remote => self.game.own_pointer_pos,
+            None => self.game.remote_pointer_pos,
             Some(new) => {
                 self.game.remote_pointer_pos = new;
+                self.game.has_remote = true;
                 new
             }
         };
