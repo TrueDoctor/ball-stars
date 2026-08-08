@@ -7,7 +7,7 @@ fn main() -> Result<(), std::io::Error> {
         connection.send_multicast_hello()?;
         std::thread::sleep(std::time::Duration::from_secs(1));
         connection.collect_responses()?;
-        if !connection.peers().len() > 1 {
+        if connection.peers().len() > 1 {
             break connection.peers()[1];
         }
     };
