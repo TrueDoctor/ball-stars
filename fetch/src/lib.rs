@@ -34,10 +34,6 @@ impl Connection<Pairing> {
         })
     }
 
-    pub fn peer_id(&self) -> u64 {
-        self.peer_id
-    }
-
     pub fn send_multicast_hello(&self) -> Result<(), Error> {
         let mut hello = [0; HELLO_LEN];
         hello[0..4].copy_from_slice(&MAGIC.to_le_bytes());
@@ -66,10 +62,6 @@ impl Connection<Pairing> {
         }
     }
 
-    pub fn peers(&self) -> &[SocketAddr] {
-        &self.peers
-    }
-
     pub fn connect(self, addr: SocketAddr) -> Result<Connection<Connected>, Error> {
         let Self {
             peers,
@@ -88,6 +80,15 @@ impl Connection<Pairing> {
             peer_id,
             _state: Default::default(),
         })
+    }
+}
+
+impl<T> Connection<T> {
+    pub fn peer_id(&self) -> u64 {
+        self.peer_id
+    }
+    pub fn peers(&self) -> &[SocketAddr] {
+        &self.peers
     }
 }
 
