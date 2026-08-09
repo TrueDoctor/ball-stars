@@ -1,0 +1,10 @@
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rapier3d = "0.35.1"
+rapier3d-meshloader = { version = "0.35.1", default-features = false, features = ["wavefront"] }
+nalgebra.workspace = true
+glam = "0.33.3"
