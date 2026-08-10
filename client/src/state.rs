@@ -1,7 +1,7 @@
 use std::{f32::consts::PI, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
-use wgpu::{util::DeviceExt, wgt::math};
+use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalPosition, event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window,
 };

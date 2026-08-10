@@ -9,8 +9,10 @@ use winit::{
 };
 
 mod game;
+mod model;
 mod network;
 mod state;
+mod texture;
 
 use crate::state::State;
 

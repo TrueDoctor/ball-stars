@@ -1,9 +1,11 @@
 use engine::World;
+use wgpu::{BindGroupLayout, Device, Queue};
 
+use crate::model::Model;
 use crate::network::{Connection, MessageType};
 
 pub type Pos = (f64, f64);
-
+const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/ramp.obj");
 pub struct Game {
     background_color: wgpu::Color,
     own_pointer_pos: Pos,
@@ -11,6 +13,7 @@ pub struct Game {
     has_remote: bool,
     connection: Connection,
     world: World,
+    model: Option<Model>,
 }
 
 impl Default for Game {
@@ -26,7 +29,8 @@ impl Default for Game {
             own_pointer_pos: Default::default(),
             remote_pointer_pos: Default::default(),
             connection: Connection::Pairing(fetch::Connection::new().ok()),
-            world: World::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/ramp.obj")),
+            world: World::new(PATH),
+            model: None,
         }
     }
 }
@@ -50,6 +54,16 @@ impl Game {
             b: y_scale,
             a: (1.0 - y_scale),
         };
+    }
+
+    pub fn load_model(
+        &mut self,
+        device: &Device,
+        queue: &Queue,
+        layout: &BindGroupLayout,
+    ) -> anyhow::Result<()> {
+        self.model = Some(crate::model::load_model(PATH, device, queue, layout)?);
+        Ok(())
     }
 
     pub fn update_pointer_pos(&mut self, pos: Pos) {
