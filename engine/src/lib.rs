@@ -11,7 +11,7 @@ use rapier3d::{
 };
 use rapier3d_meshloader::LoadedShape;
 
-struct World {
+pub struct World {
     level: Mesh,
     player: Player,
     physics: Physics,
@@ -81,7 +81,7 @@ impl Physics {
 }
 
 impl World {
-    fn new(path: &str) -> Self {
+    pub fn new(path: &str) -> Self {
         let mut physics = Physics::default();
         let mesh = load_geometry(path).unwrap();
 
@@ -109,21 +109,24 @@ impl World {
         }
     }
 
-    fn player_position(&mut self) -> Vec3 {
+    pub fn player_position(&mut self) -> Vec3 {
         let ball = &self.physics.rigid_bodies[self.player.handle];
         ball.translation()
     }
-    fn set_player_position(&mut self, pos: Vec3) {
+    pub fn set_player_position(&mut self, pos: Vec3) {
         let ball = &mut self.physics.rigid_bodies[self.player.handle];
         ball.set_translation(pos, true);
     }
-    fn apply_impulse(&mut self, impulse: Vec3) {
+    pub fn apply_impulse(&mut self, impulse: Vec3) {
         let ball = &mut self.physics.rigid_bodies[self.player.handle];
         ball.apply_impulse(impulse, true);
     }
+    pub fn simulate_step(&mut self) {
+        self.physics.simulate_step();
+    }
 }
 
-struct Player {
+pub struct Player {
     handle: RigidBodyHandle,
 }
 

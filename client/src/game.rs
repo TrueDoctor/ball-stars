@@ -1,3 +1,5 @@
+use engine::World;
+
 use crate::network::{Connection, MessageType};
 
 pub type Pos = (f64, f64);
@@ -8,6 +10,7 @@ pub struct Game {
     remote_pointer_pos: Pos,
     has_remote: bool,
     connection: Connection,
+    world: World,
 }
 
 impl Default for Game {
@@ -23,6 +26,7 @@ impl Default for Game {
             own_pointer_pos: Default::default(),
             remote_pointer_pos: Default::default(),
             connection: Connection::Pairing(fetch::Connection::new().ok()),
+            world: World::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/ramp.obj")),
         }
     }
 }
@@ -30,6 +34,7 @@ impl Default for Game {
 impl Game {
     pub fn tick(&mut self) {
         self.exchange_positions();
+        self.world.simulate_step();
         let (x_scale, y_scale) = match self.connection.update(self.own_pointer_pos) {
             None if !self.has_remote => self.own_pointer_pos,
             None => self.remote_pointer_pos,

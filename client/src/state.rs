@@ -103,8 +103,6 @@ fn calc_vertices(num_vertices: u32, radius: f32) -> (Vec<Vertex>, Vec<u16>) {
         position: [0.0, 0.0, 0.0],
         color: [0.5, 0.0, 0.5],
     });
-    dbg!(&vertices);
-    dbg!(&indices);
     (vertices, indices)
 }
 
@@ -149,7 +147,6 @@ impl State {
 
         let num_vertices = 40;
         let (vertices, indices) = calc_vertices(num_vertices - 1, 0.2);
-        // let (vertices, indices) = (VERTICES, INDICES);
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
