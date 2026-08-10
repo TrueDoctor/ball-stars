@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::{f32::consts::PI, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
-use wgpu::util::DeviceExt;
+use wgpu::{util::DeviceExt, wgt::math};
 use winit::{
     dpi::PhysicalPosition, event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window,
 };
@@ -51,21 +51,21 @@ impl Vertex {
 //     },
 // ];
 
-#[rustfmt::skip]
-const VERTICES: &[Vertex] = &[
-    Vertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.5, 0.0, 0.5] }, 
-    Vertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.5, 0.0, 0.5] }, 
-    Vertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.5, 0.0, 0.5] }, 
-    Vertex { position: [0.35966998, -0.3473291, 0.0], color: [0.5, 0.0, 0.5] }, 
-    Vertex { position: [0.44147372, 0.2347359, 0.0], color: [0.5, 0.0, 0.5] }, 
-];
+// #[rustfmt::skip]
+// const VERTICES: &[Vertex] = &[
+//     Vertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.5, 0.0, 0.5] },
+//     Vertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.5, 0.0, 0.5] },
+//     Vertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.5, 0.0, 0.5] },
+//     Vertex { position: [0.35966998, -0.3473291, 0.0], color: [0.5, 0.0, 0.5] },
+//     Vertex { position: [0.44147372, 0.2347359, 0.0], color: [0.5, 0.0, 0.5] },
+// ];
 
-#[rustfmt::skip]
-const INDICES: &[u16] = &[
-    0, 1, 4,
-    1, 2, 4,
-    2, 3, 4,
-];
+// #[rustfmt::skip]
+// const INDICES: &[u16] = &[
+//     0, 1, 4,
+//     1, 2, 4,
+//     2, 3, 4,
+// ];
 
 pub struct State {
     surface: wgpu::Surface<'static>,
@@ -80,6 +80,32 @@ pub struct State {
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     game: Game,
+}
+
+fn calc_vertices(num_vertices: u32, radius: f32) -> (Vec<Vertex>, Vec<u16>) {
+    let mut vertices = vec![];
+    let mut indices: Vec<u16> = vec![];
+    // let radius = 0.2;
+    for j in 0..num_vertices {
+        let rad = 2.0 * PI * ((j as f32) / (num_vertices as f32));
+        let x = rad.cos() * radius;
+        let y = rad.sin() * radius;
+        vertices.push(Vertex {
+            position: [x, y, 0.0],
+            color: [0.5, 0.0, 0.5],
+        });
+        indices.push(num_vertices as u16);
+        indices.push(j as u16);
+        indices.push(((j + 1) % num_vertices) as u16);
+    }
+
+    vertices.push(Vertex {
+        position: [0.0, 0.0, 0.0],
+        color: [0.5, 0.0, 0.5],
+    });
+    dbg!(&vertices);
+    dbg!(&indices);
+    (vertices, indices)
 }
 
 impl State {
@@ -120,18 +146,23 @@ impl State {
             })
             .await?;
         let surface_caps = surface.get_capabilities(&adapter);
+
+        let num_vertices = 40;
+        let (vertices, indices) = calc_vertices(num_vertices - 1, 0.2);
+        // let (vertices, indices) = (VERTICES, INDICES);
+
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(&vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
+            contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsages::INDEX,
         });
-        let num_indices = INDICES.len() as u32;
+        let num_indices = indices.len() as u32;
 
         // Shader code in this tutorial assumes an sRGB surface texture. Using a different
         // one will result in all the colors coming out darker. If you want to support non
@@ -206,8 +237,6 @@ impl State {
             multiview_mask: None,
             cache: None,
         });
-
-        let num_vertices = VERTICES.len() as u32;
 
         Ok(Self {
             surface,
