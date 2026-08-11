@@ -59,7 +59,7 @@ pub struct Mesh {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub num_elements: u32,
-    pub material: usize,
+    pub material: Option<usize>,
 }
 
 pub fn load_texture(
@@ -89,11 +89,28 @@ pub fn load_model(
         },
     )?;
 
+    let obj_materials = match obj_materials {
+        Ok(materials) => materials,
+        Err(e) => {
+            log::warn!("{file_name}: could not load materials: {e}");
+            Vec::new()
+        }
+    };
+
     let mut materials = Vec::new();
-    for m in obj_materials? {
+    for m in obj_materials {
         let diffuse_texture = match &m.diffuse_texture {
             Some(name) => load_texture(&base_dir.join(name), device, queue)?,
-            None => anyhow::bail!("material {:?} has no diffuse texture", m.name),
+            None => {
+                let [r, g, b] = m.diffuse.unwrap_or([1.0, 1.0, 1.0]);
+                let rgba = [
+                    (r * 255.0) as u8,
+                    (g * 255.0) as u8,
+                    (b * 255.0) as u8,
+                    255,
+                ];
+                texture::Texture::from_pixel(device, queue, rgba, &m.name)?
+            }
         };
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout,
@@ -172,7 +189,7 @@ pub fn load_model(
                 vertex_buffer,
                 index_buffer,
                 num_elements: m.mesh.indices.len() as u32,
-                material: m.mesh.material_id.unwrap_or(0),
+                material: m.mesh.material_id,
             }
         })
         .collect::<Vec<_>>();
@@ -181,32 +198,29 @@ pub fn load_model(
 }
 
 pub trait DrawModel {
-    fn draw_mesh(&mut self, mesh: &Mesh, material: &Material, camera_bind_group: &wgpu::BindGroup);
+    fn draw_mesh(&mut self, mesh: &Mesh, bind_group: &wgpu::BindGroup);
     fn draw_mesh_instanced(
         &mut self,
         mesh: &Mesh,
-        material: &Material,
+        bind_group: &wgpu::BindGroup,
         instances: Range<u32>,
-        camera_bind_group: &wgpu::BindGroup,
     );
 }
 
 impl DrawModel for wgpu::RenderPass<'_> {
-    fn draw_mesh(&mut self, mesh: &Mesh, material: &Material, camera_bind_group: &wgpu::BindGroup) {
-        self.draw_mesh_instanced(mesh, material, 0..1, camera_bind_group);
+    fn draw_mesh(&mut self, mesh: &Mesh, bind_group: &wgpu::BindGroup) {
+        self.draw_mesh_instanced(mesh, bind_group, 0..1);
     }
 
     fn draw_mesh_instanced(
         &mut self,
         mesh: &Mesh,
-        material: &Material,
+        bind_group: &wgpu::BindGroup,
         instances: Range<u32>,
-        camera_bind_group: &wgpu::BindGroup,
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        self.set_bind_group(0, &material.bind_group, &[]);
-        self.set_bind_group(1, camera_bind_group, &[]);
+        self.set_bind_group(0, bind_group, &[]);
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
 }

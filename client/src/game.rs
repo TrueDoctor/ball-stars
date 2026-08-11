@@ -74,6 +74,10 @@ impl Game {
         self.background_color
     }
 
+    pub fn model(&self) -> Option<&Model> {
+        self.model.as_ref()
+    }
+
     pub fn exchange_positions(&mut self) {
         if !self.connection.is_connected() {
             self.connection.pair();

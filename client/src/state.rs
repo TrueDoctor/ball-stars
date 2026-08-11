@@ -1,40 +1,13 @@
 use std::{f32::consts::PI, sync::Arc};
 
-use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalPosition, event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window,
 };
 
 use crate::game::Game;
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, Zeroable, Pod)]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 3],
-}
-
-impl Vertex {
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
-}
+use crate::model::{DrawModel, ModelVertex, Vertex as _};
+use crate::texture::Texture;
 
 // const VERTICES: &[Vertex] = &[
 //     Vertex {
@@ -79,29 +52,31 @@ pub struct State {
     num_vertices: u32,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
+    white_bind_group: wgpu::BindGroup,
     game: Game,
 }
 
-fn calc_vertices(num_vertices: u32, radius: f32) -> (Vec<Vertex>, Vec<u16>) {
+fn calc_vertices(num_vertices: u32, radius: f32) -> (Vec<ModelVertex>, Vec<u16>) {
     let mut vertices = vec![];
     let mut indices: Vec<u16> = vec![];
-    // let radius = 0.2;
     for j in 0..num_vertices {
         let rad = 2.0 * PI * ((j as f32) / (num_vertices as f32));
         let x = rad.cos() * radius;
         let y = rad.sin() * radius;
-        vertices.push(Vertex {
+        vertices.push(ModelVertex {
             position: [x, y, 0.0],
-            color: [0.5, 0.0, 0.5],
+            tex_coords: [0.5, 0.5],
+            normal: [0.0, 0.0, 1.0],
         });
         indices.push(num_vertices as u16);
         indices.push(j as u16);
         indices.push(((j + 1) % num_vertices) as u16);
     }
 
-    vertices.push(Vertex {
+    vertices.push(ModelVertex {
         position: [0.0, 0.0, 0.0],
-        color: [0.5, 0.0, 0.5],
+        tex_coords: [0.5, 0.5],
+        normal: [0.0, 0.0, 1.0],
     });
     (vertices, indices)
 }
@@ -161,6 +136,48 @@ impl State {
         });
         let num_indices = indices.len() as u32;
 
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("texture_bind_group_layout"),
+            });
+
+        let white_texture = Texture::from_pixel(&device, &queue, [0, 255, 255, 255], "white")?;
+        let white_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&white_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&white_texture.sampler),
+                },
+            ],
+            label: Some("white_bind_group"),
+        });
+
+        let mut game = Game::default();
+        game.load_model(&device, &queue, &texture_bind_group_layout)?;
+
         // Shader code in this tutorial assumes an sRGB surface texture. Using a different
         // one will result in all the colors coming out darker. If you want to support non
         // sRGB surfaces, you'll need to account for that when drawing to the frame.
@@ -188,7 +205,7 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[Some(&texture_bind_group_layout)],
                 immediate_size: 0,
             });
 
@@ -198,7 +215,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[Some(Vertex::desc())],
+                buffers: &[Some(ModelVertex::desc())],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -247,7 +264,8 @@ impl State {
             index_buffer,
             num_indices,
             num_vertices,
-            game: Game::default(),
+            white_bind_group,
+            game,
         })
     }
 
@@ -325,7 +343,19 @@ impl State {
                 timestamp_writes: None,
                 multiview_mask: None,
             });
-            render_pass.set_pipeline(&self.render_pipeline); // 2.
+            render_pass.set_pipeline(&self.render_pipeline);
+
+            if let Some(model) = self.game.model() {
+                for mesh in &model.meshes {
+                    let bind_group = mesh
+                        .material
+                        .and_then(|i| model.materials.get(i))
+                        .map_or(&self.white_bind_group, |m| &m.bind_group);
+                    render_pass.draw_mesh(mesh, bind_group);
+                }
+            }
+
+            render_pass.set_bind_group(0, &self.white_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
