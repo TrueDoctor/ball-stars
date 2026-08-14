@@ -81,12 +81,9 @@ struct Camera {
 
 impl Camera {
     fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-        // 1.
         let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
-        // 2.
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
 
-        // 3.
         return OPENGL_TO_WGPU_MATRIX * proj * view;
     }
 }
@@ -110,6 +107,10 @@ pub struct State {
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     camera_controller: CameraController,
+    level_transform_bind_group: wgpu::BindGroup,
+    level_transform_buffer: wgpu::Buffer,
+    player_transform_bind_group: wgpu::BindGroup,
+    player_transform_buffer: wgpu::Buffer,
 }
 
 fn calc_vertices(num_vertices: u32, radius: f32) -> (Vec<ModelVertex>, Vec<u16>) {
@@ -233,6 +234,7 @@ impl State {
 
         let mut game = Game::default();
         game.load_model(&device, &queue, &texture_bind_group_layout)?;
+        game.load_player(&device, &queue, &texture_bind_group_layout)?;
 
         // Shader code in this tutorial assumes an sRGB surface texture. Using a different
         // one will result in all the colors coming out darker. If you want to support non
@@ -257,7 +259,7 @@ impl State {
         let camera = Camera {
             // position the camera 1 unit up and 2 units back
             // +z is out of the screen
-            eye: (0.0, 1.0, 2.0).into(),
+            eye: (0.0, 2.0, 40.0).into(),
             // have it look at the origin
             target: (0.0, 0.0, 0.0).into(),
             // which way is "up"
@@ -276,6 +278,17 @@ impl State {
             contents: bytemuck::cast_slice(&[camera_uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
+        let level_transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Level Transform Buffer"),
+            contents: bytemuck::cast_slice(&glam::Mat4::IDENTITY.to_cols_array()),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let player_transform_buffer =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Player Transform Buffer"),
+                contents: bytemuck::cast_slice(&glam::Mat4::IDENTITY.to_cols_array()),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
         let camera_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -290,6 +303,20 @@ impl State {
                 }],
                 label: Some("camera_bind_group_layout"),
             });
+        let transform_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("transform_bind_group_layout"),
+            });
         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &camera_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
@@ -297,6 +324,22 @@ impl State {
                 resource: camera_buffer.as_entire_binding(),
             }],
             label: Some("camera_bind_group"),
+        });
+        let level_transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &transform_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: level_transform_buffer.as_entire_binding(),
+            }],
+            label: Some("level_transform_bind_group"),
+        });
+        let player_transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &transform_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: player_transform_buffer.as_entire_binding(),
+            }],
+            label: Some("level_transform_bind_group"),
         });
         let camera_controller = CameraController::new(0.2);
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -309,6 +352,7 @@ impl State {
                 bind_group_layouts: &[
                     Some(&texture_bind_group_layout),
                     Some(&camera_bind_group_layout),
+                    Some(&transform_bind_group_layout),
                 ],
                 immediate_size: 0,
             });
@@ -374,6 +418,10 @@ impl State {
             camera_buffer,
             camera_bind_group,
             camera_controller,
+            level_transform_bind_group,
+            level_transform_buffer,
+            player_transform_bind_group,
+            player_transform_buffer,
         })
     }
 
@@ -403,6 +451,11 @@ impl State {
             &self.camera_buffer,
             0,
             bytemuck::cast_slice(&[self.camera_uniform]),
+        );
+        self.queue.write_buffer(
+            &self.player_transform_buffer,
+            0,
+            bytemuck::cast_slice(&self.game.player_tranform().to_cols_array()),
         );
         self.game.tick();
     }
@@ -468,12 +521,33 @@ impl State {
                         .material
                         .and_then(|i| model.materials.get(i))
                         .map_or(&self.white_bind_group, |m| &m.bind_group);
-                    render_pass.draw_mesh(mesh, bind_group, &self.camera_bind_group);
+                    render_pass.draw_mesh(
+                        mesh,
+                        bind_group,
+                        &self.camera_bind_group,
+                        &self.level_transform_bind_group,
+                    );
+                }
+            }
+
+            if let Some(model) = self.game.player() {
+                for mesh in &model.meshes {
+                    let bind_group = mesh
+                        .material
+                        .and_then(|i| model.materials.get(i))
+                        .map_or(&self.white_bind_group, |m| &m.bind_group);
+                    render_pass.draw_mesh(
+                        mesh,
+                        bind_group,
+                        &self.camera_bind_group,
+                        &self.player_transform_bind_group,
+                    );
                 }
             }
 
             render_pass.set_bind_group(0, &self.white_bind_group, &[]);
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(2, &self.player_transform_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);

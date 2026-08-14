@@ -1,6 +1,7 @@
-use std::error::Error;
+use std::{error::Error, fmt::Debug};
 mod physics;
 
+use glam::Quat;
 use rapier3d::{
     dynamics::{RigidBodyBuilder, RigidBodyHandle},
     geometry::ColliderBuilder,
@@ -22,7 +23,7 @@ impl World {
         let mesh = load_geometry(path).unwrap();
 
         for shape in &mesh.shapes {
-            let collider = ColliderBuilder::new(shape.shape.clone());
+            let collider = ColliderBuilder::new(shape.shape.clone()).restitution(0.9);
             physics.colliders.insert(collider);
         }
 
@@ -30,7 +31,7 @@ impl World {
             .translation(Vec3::new(0.0, 10.0, 0.0))
             .build();
 
-        let collider = ColliderBuilder::ball(0.5).restitution(0.7).build();
+        let collider = ColliderBuilder::ball(1.).restitution(0.9).build();
         let ball_body_handle = physics.rigid_bodies.insert(rigid_body);
         physics
             .colliders
@@ -45,9 +46,13 @@ impl World {
         }
     }
 
-    pub fn player_position(&mut self) -> Vec3 {
+    pub fn player_position(&self) -> Vec3 {
         let ball = &self.physics.rigid_bodies[self.player.handle];
         ball.translation()
+    }
+    pub fn player_rotation(&self) -> Quat {
+        let ball = &self.physics.rigid_bodies[self.player.handle];
+        *ball.rotation()
     }
     pub fn set_player_position(&mut self, pos: Vec3) {
         let ball = &mut self.physics.rigid_bodies[self.player.handle];
@@ -58,7 +63,7 @@ impl World {
         ball.apply_impulse(impulse, true);
     }
     pub fn simulate_step(&mut self) {
-        self.physics.simulate_step();
+        self.physics.advance();
     }
 }
 

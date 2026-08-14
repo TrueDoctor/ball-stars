@@ -1,11 +1,13 @@
 use engine::World;
+use glam::Mat4;
 use wgpu::{BindGroupLayout, Device, Queue};
 
 use crate::model::Model;
 use crate::network::{Connection, MessageType};
 
 pub type Pos = (f64, f64);
-const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/ramp.obj");
+const LEVEL_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/ramp.obj");
+const PLAYER_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/Ball.obj");
 pub struct Game {
     background_color: wgpu::Color,
     own_pointer_pos: Pos,
@@ -14,6 +16,7 @@ pub struct Game {
     connection: Connection,
     world: World,
     model: Option<Model>,
+    player: Option<Model>,
 }
 
 impl Default for Game {
@@ -29,8 +32,9 @@ impl Default for Game {
             own_pointer_pos: Default::default(),
             remote_pointer_pos: Default::default(),
             connection: Connection::Pairing(fetch::Connection::new().ok()),
-            world: World::new(PATH),
+            world: World::new(LEVEL_PATH),
             model: None,
+            player: None,
         }
     }
 }
@@ -62,7 +66,22 @@ impl Game {
         queue: &Queue,
         layout: &BindGroupLayout,
     ) -> anyhow::Result<()> {
-        self.model = Some(crate::model::load_model(PATH, device, queue, layout)?);
+        self.model = Some(crate::model::load_model(LEVEL_PATH, device, queue, layout)?);
+        Ok(())
+    }
+
+    pub fn load_player(
+        &mut self,
+        device: &Device,
+        queue: &Queue,
+        layout: &BindGroupLayout,
+    ) -> anyhow::Result<()> {
+        self.player = Some(crate::model::load_model(
+            PLAYER_PATH,
+            device,
+            queue,
+            layout,
+        )?);
         Ok(())
     }
 
@@ -76,6 +95,15 @@ impl Game {
 
     pub fn model(&self) -> Option<&Model> {
         self.model.as_ref()
+    }
+    pub fn player(&self) -> Option<&Model> {
+        self.player.as_ref()
+    }
+
+    pub fn player_tranform(&self) -> Mat4 {
+        let trans = self.world.player_position();
+        let rot = self.world.player_rotation();
+        glam::Mat4::from_translation(trans) * glam::Mat4::from_quat(rot)
     }
 
     pub fn exchange_positions(&mut self) {

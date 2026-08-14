@@ -198,6 +198,7 @@ pub trait DrawModel {
         mesh: &Mesh,
         bind_group: &wgpu::BindGroup,
         camera_bind_group: &wgpu::BindGroup,
+        transform_bind_group: &wgpu::BindGroup,
     );
     fn draw_mesh_instanced(
         &mut self,
@@ -205,6 +206,7 @@ pub trait DrawModel {
         bind_group: &wgpu::BindGroup,
         instances: Range<u32>,
         camera_bind_group: &wgpu::BindGroup,
+        transform_bind_group: &wgpu::BindGroup,
     );
 }
 
@@ -214,8 +216,15 @@ impl DrawModel for wgpu::RenderPass<'_> {
         mesh: &Mesh,
         bind_group: &wgpu::BindGroup,
         camera_bind_group: &wgpu::BindGroup,
+        transform_bind_group: &wgpu::BindGroup,
     ) {
-        self.draw_mesh_instanced(mesh, bind_group, 0..1, camera_bind_group);
+        self.draw_mesh_instanced(
+            mesh,
+            bind_group,
+            0..1,
+            camera_bind_group,
+            transform_bind_group,
+        );
     }
 
     fn draw_mesh_instanced(
@@ -224,11 +233,13 @@ impl DrawModel for wgpu::RenderPass<'_> {
         bind_group: &wgpu::BindGroup,
         instances: Range<u32>,
         camera_bind_group: &wgpu::BindGroup,
+        transform_bind_group: &wgpu::BindGroup,
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.set_bind_group(0, bind_group, &[]);
         self.set_bind_group(1, camera_bind_group, &[]);
+        self.set_bind_group(2, transform_bind_group, &[]);
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
 }

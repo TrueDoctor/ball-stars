@@ -346,6 +346,7 @@ dependencies = [
  "engine",
  "env_logger",
  "fetch",
+ "glam 0.33.3",
  "image",
  "log",
  "nalgebra",
