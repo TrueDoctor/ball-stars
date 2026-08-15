@@ -1,5 +1,7 @@
+use std::ops::{Mul, RemAssign};
+
 use engine::World;
-use glam::Mat4;
+use glam::{Mat4, Vec2, Vec3, Vec3Swizzles};
 use wgpu::{BindGroupLayout, Device, Queue};
 
 use crate::model::Model;
@@ -12,6 +14,7 @@ pub struct Game {
     background_color: wgpu::Color,
     own_pointer_pos: Pos,
     remote_pointer_pos: Pos,
+    last_pointer_actualization: std::time::Instant,
     has_remote: bool,
     connection: Connection,
     world: World,
@@ -31,6 +34,11 @@ impl Default for Game {
             has_remote: false,
             own_pointer_pos: Default::default(),
             remote_pointer_pos: Default::default(),
+            last_pointer_actualization: std::time::Instant::checked_sub(
+                &std::time::Instant::now(),
+                std::time::Duration::from_millis(101),
+            )
+            .unwrap(),
             connection: Connection::Pairing(fetch::Connection::new().ok()),
             world: World::new(LEVEL_PATH),
             model: None,
@@ -117,5 +125,17 @@ impl Game {
                 }
             }
         }
+    }
+    pub fn get_own_pos(&self) -> Pos {
+        self.own_pointer_pos
+    }
+    pub fn get_last_pointer_actualization(&self) -> std::time::Instant {
+        self.last_pointer_actualization
+    }
+    pub fn set_last_pointer_actualization(&mut self, time: std::time::Instant) {
+        self.last_pointer_actualization = time;
+    }
+    pub fn apply_movement(&mut self, move_vec: Vec2) {
+        self.world.apply_impulse(move_vec.extend(0.).xzy() * 10.);
     }
 }

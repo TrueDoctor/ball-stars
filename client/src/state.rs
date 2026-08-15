@@ -1,5 +1,6 @@
 use std::{f32::consts::PI, sync::Arc};
 
+use glam::Vec2;
 use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalPosition, event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window,
@@ -111,6 +112,7 @@ pub struct State {
     level_transform_buffer: wgpu::Buffer,
     player_transform_bind_group: wgpu::BindGroup,
     player_transform_buffer: wgpu::Buffer,
+    movement_vec: Vec2,
 }
 
 fn calc_vertices(num_vertices: u32, radius: f32) -> (Vec<ModelVertex>, Vec<u16>) {
@@ -422,6 +424,7 @@ impl State {
             level_transform_buffer,
             player_transform_bind_group,
             player_transform_buffer,
+            movement_vec: Vec2::default(),
         })
     }
 
@@ -457,6 +460,8 @@ impl State {
             0,
             bytemuck::cast_slice(&self.game.player_tranform().to_cols_array()),
         );
+        self.game.apply_movement(self.movement_vec);
+        self.movement_vec = Vec2::default();
         self.game.tick();
     }
 
@@ -564,6 +569,18 @@ impl State {
         let height = self.config.height;
         let x_scale = pos.x / (width as f64);
         let y_scale = pos.y / (height as f64);
+        if self.game.get_last_pointer_actualization().elapsed()
+            <= std::time::Duration::from_millis(100)
+        {
+            let move_vec = (
+                x_scale - self.game.get_own_pos().0,
+                y_scale - self.game.get_own_pos().1,
+            );
+            let move_vec = Vec2::new(move_vec.0 as f32, move_vec.1 as f32);
+            self.movement_vec += move_vec;
+        }
+        self.game
+            .set_last_pointer_actualization(std::time::Instant::now());
         self.game.update_pointer_pos((x_scale, y_scale));
     }
 }
