@@ -583,6 +583,11 @@ impl State {
             .set_last_pointer_actualization(std::time::Instant::now());
         self.game.update_pointer_pos((x_scale, y_scale));
     }
+    pub fn handle_mouse_delta(&mut self, delta: Vec2) {
+        let movement_speed = 1. / 100.;
+        let move_vec = delta * movement_speed;
+        self.movement_vec += move_vec;
+    }
 }
 struct CameraController {
     speed: f32,

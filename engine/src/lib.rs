@@ -23,7 +23,7 @@ impl World {
         let mesh = load_geometry(path).unwrap();
 
         for shape in &mesh.shapes {
-            let collider = ColliderBuilder::new(shape.shape.clone()).restitution(0.9);
+            let collider = ColliderBuilder::new(shape.shape.clone()).restitution(0.7);
             physics.colliders.insert(collider);
         }
 
@@ -31,7 +31,7 @@ impl World {
             .translation(Vec3::new(0.0, 10.0, 0.0))
             .build();
 
-        let collider = ColliderBuilder::ball(1.).restitution(0.9).build();
+        let collider = ColliderBuilder::ball(1.).restitution(0.7).build();
         let ball_body_handle = physics.rigid_bodies.insert(rigid_body);
         physics
             .colliders

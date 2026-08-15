@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use glam::Vec2;
 use winit::{
     application::ApplicationHandler,
     event::*,
@@ -31,6 +32,8 @@ impl ApplicationHandler<State> for App {
         let window_attributes = Window::default_attributes();
 
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
+        let _ = window.set_cursor_grab(winit::window::CursorGrabMode::Locked);
+        window.set_cursor_visible(false);
 
         self.state = Some(pollster::block_on(State::new(window)).unwrap());
     }
@@ -39,6 +42,22 @@ impl ApplicationHandler<State> for App {
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut event: State) {
         self.state = Some(event);
     }
+
+    fn device_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        _device_id: DeviceId,
+        event: DeviceEvent,
+    ) {
+        let state = match &mut self.state {
+            Some(canvas) => canvas,
+            None => return,
+        };
+        if let DeviceEvent::MouseMotion { delta } = event {
+            state.handle_mouse_delta(Vec2::new(delta.0 as f32, delta.1 as f32));
+        }
+    }
+
     // in ApplicationHandler<State> for App
     fn window_event(
         &mut self,
