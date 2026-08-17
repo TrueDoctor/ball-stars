@@ -8,7 +8,7 @@ use winit::{
 
 use crate::game::Game;
 use crate::model::{DrawModel, ModelVertex, Vertex as _};
-use crate::texture::Texture;
+use crate::texture::{self, Texture};
 // We need this for Rust to store our data correctly for the shaders
 #[repr(C)]
 // This is so we can store this in a buffer
@@ -113,6 +113,7 @@ pub struct State {
     player_transform_bind_group: wgpu::BindGroup,
     player_transform_buffer: wgpu::Buffer,
     movement_vec: Vec2,
+    depth_texture: Texture,
 }
 
 fn calc_vertices(num_vertices: u32, radius: f32) -> (Vec<ModelVertex>, Vec<u16>) {
@@ -392,7 +393,13 @@ impl State {
                 // Requires Features::CONSERVATIVE_RASTERIZATION
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: texture::Texture::DEPTH_FORMAT,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Less), // 1.
+                stencil: wgpu::StencilState::default(),           // 2.
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -401,6 +408,8 @@ impl State {
             multiview_mask: None,
             cache: None,
         });
+        let depth_texture =
+            texture::Texture::create_depth_texture(&device, &config, "depth_texture");
         Ok(Self {
             surface,
             device,
@@ -425,6 +434,7 @@ impl State {
             player_transform_bind_group,
             player_transform_buffer,
             movement_vec: Vec2::default(),
+            depth_texture,
         })
     }
 
@@ -435,6 +445,8 @@ impl State {
             self.config.height = height.min(max);
             self.surface.configure(&self.device, &self.config);
             self.is_surface_configured = true;
+            self.depth_texture =
+                texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
         }
     }
 
@@ -513,7 +525,14 @@ impl State {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 occlusion_query_set: None,
                 timestamp_writes: None,
                 multiview_mask: None,

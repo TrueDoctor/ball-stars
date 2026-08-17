@@ -31,7 +31,7 @@ impl World {
             .translation(Vec3::new(0.0, 10.0, 0.0))
             .build();
 
-        let collider = ColliderBuilder::ball(1.).restitution(0.7).build();
+        let collider = ColliderBuilder::ball(1.84).restitution(0.7).build();
         let ball_body_handle = physics.rigid_bodies.insert(rigid_body);
         physics
             .colliders
