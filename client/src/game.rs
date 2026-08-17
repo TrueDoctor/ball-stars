@@ -113,6 +113,9 @@ impl Game {
         let rot = self.world.player_rotation();
         glam::Mat4::from_translation(trans) * glam::Mat4::from_quat(rot)
     }
+    pub fn player_position(&self) -> Vec3 {
+        self.world.player_position()
+    }
 
     pub fn exchange_positions(&mut self) {
         if !self.connection.is_connected() {

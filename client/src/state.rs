@@ -445,6 +445,7 @@ impl State {
             self.config.height = height.min(max);
             self.surface.configure(&self.device, &self.config);
             self.is_surface_configured = true;
+            self.camera.aspect = width as f32 / height as f32;
             self.depth_texture =
                 texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
         }
@@ -460,6 +461,7 @@ impl State {
         }
     }
     pub fn update(&mut self) {
+        self.camera.target = self.game.player_position().to_array().into();
         self.camera_controller.update_camera(&mut self.camera);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
