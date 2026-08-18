@@ -1,6 +1,6 @@
 use std::{f32::consts::PI, sync::Arc};
 
-use glam::Vec2;
+use glam::{Vec2, Vec3};
 use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalPosition, event_loop::ActiveEventLoop, keyboard::KeyCode, window::Window,
@@ -86,6 +86,12 @@ impl Camera {
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
 
         return OPENGL_TO_WGPU_MATRIX * proj * view;
+    }
+
+    fn direction(&self) -> Vec2 {
+        let vec = (self.target - self.eye);
+        let vec = Vec2::new(vec.x, vec.z);
+        vec.normalize_or(Vec2::Y)
     }
 }
 
@@ -605,7 +611,10 @@ impl State {
         self.game.update_pointer_pos((x_scale, y_scale));
     }
     pub fn handle_mouse_delta(&mut self, delta: Vec2) {
-        let movement_speed = 1. / 100.;
+        let camera_dir = self.camera.direction();
+        let angle = camera_dir.angle_to(-Vec2::Y);
+        let delta = delta.rotate_angle(-angle);
+        let movement_speed = 1. / 10.;
         let move_vec = delta * movement_speed;
         self.movement_vec += move_vec;
     }

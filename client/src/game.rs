@@ -139,6 +139,6 @@ impl Game {
         self.last_pointer_actualization = time;
     }
     pub fn apply_movement(&mut self, move_vec: Vec2) {
-        self.world.apply_impulse(move_vec.extend(0.).xzy() * 10.);
+        self.world.apply_impulse(move_vec.extend(0.).xzy());
     }
 }
