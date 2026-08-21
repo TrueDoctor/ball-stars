@@ -29,12 +29,15 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
-    out.normal = model.normal;
+    out.normal = normalize((transform * vec4<f32>(model.normal, 0)).xyz);
     out.clip_position = camera.view_proj * transform * vec4<f32>(model.position, 1.0);
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    let up = vec3<f32>(0., 1., 0.);
+    let light_contrib = up * in.normal * 0.5 + 0.5;
+    let color =  textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    return vec4<f32>(color.xyz * light_contrib, color.w);
 }
