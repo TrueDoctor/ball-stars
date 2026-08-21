@@ -467,7 +467,9 @@ impl State {
         }
     }
     pub fn update(&mut self) {
+        let old = self.camera.target;
         self.camera.target = self.game.player_position().to_array().into();
+        self.camera.eye -= old - self.camera.target;
         self.camera_controller.update_camera(&mut self.camera);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(

@@ -37,7 +37,7 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let up = vec3<f32>(0., 1., 0.);
-    let light_contrib = up * in.normal * 0.5 + 0.5;
+    let light_contrib = dot(up, in.normal) * 0.5 + 0.5;
     let color =  textureSample(t_diffuse, s_diffuse, in.tex_coords);
     return vec4<f32>(color.xyz * light_contrib, color.w);
 }
